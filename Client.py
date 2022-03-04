@@ -1,4 +1,5 @@
 import socket
+import sys
 import threading
 import pickle
 
@@ -37,6 +38,7 @@ class Client:
                     self.client.send(self.name.encode())
                 elif message == "disconnected":  # if we get "disconnected" - we disconnect the client from the server
                     self.client.close()
+                    sys.exit()
                 elif "ready for download:" in message:
                     # this message tell us to switch to the UDP socket in order to download the file we want
                     file = message.split(':')[1]
@@ -103,4 +105,5 @@ class Client:
             file.write(file_segments[key])
         file.close()
         print("file has successfully download!")
+        sys.exit()
 

@@ -1,3 +1,4 @@
+import sys
 import threading
 import socket
 import os
@@ -93,6 +94,7 @@ class Server:
         del self.connected_clients[client]
         client.send("disconnected".encode())
         client.close()
+        sys.exit()
 
     def get_files(self):  # get all the files that the server have
         file_name = ''
@@ -171,6 +173,7 @@ class Server:
                             received += 1
 
                 elif message == "got all the data":
+                    sys.exit()
                     break
 
                 if received > num_of_packets:
