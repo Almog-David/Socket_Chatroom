@@ -3,10 +3,11 @@ import threading
 import socket
 import os
 import pickle
+import time
 
 SERVER_IP = '127.0.0.1'
-SERVER_PORT = 50008  # TCP Port
-SERVER_UDP_PORT = 55001  # UDP Port
+SERVER_PORT = 50007  # TCP Port
+SERVER_UDP_PORT = 55003  # UDP Port
 
 
 class Server:
@@ -62,12 +63,13 @@ class Server:
                     else:
                         if file_name in self.server_files.keys():
                             file = self.server_files[file_name]
+                            num_of_packets = len(file)
                         else:
                             file, num_of_packets = self.create_file_for_download(file_name)
                             self.server_files[file_name] = file
-                            print("good")
+                        print("good")
                         client.send(f'ready for download: {file_name}'.encode())
-                        threading.Thread(target=self.send_file, args=(file, num_of_packets)).start()
+                        threading.Thread(target=self.send_file, args=(file, num_of_packets,client)).start()
 
                 else:
                     name = self.connected_clients[client]
@@ -123,26 +125,24 @@ class Server:
         path = './Files/' + file_name
         file = open(path, 'r')
         num_of_packets = os.path.getsize(path)
-        num_of_packets = int(num_of_packets / 2044)
+        num_of_packets = int(num_of_packets / 1024)
         # we take the size of the file and split it to chunks in size 2042, so we can add the ack number of the packet
         # (6 bytes) and save it in the dictionary, and we will use it to track the packets we send.
-        chunk = file.read(2044)
+        chunk = file.read(1020)
         ack = 0
         while ack <= num_of_packets:
             info = [ack, chunk]
             msg = pickle.dumps(info)
             file_segments[ack] = msg
             ack += 1
-            chunk = file.read(2044)
+            chunk = file.read(1020)
         file.close()
         print('SERVER: Data split to packets')
         return file_segments, num_of_packets
 
-    def send_file(self, ready_file, num_of_packets):
-        print("entered")
+    def send_file(self, ready_file, num_of_packets,client ):
         received = 0
         ack_list = list(range(0, num_of_packets + 1))
-        print(len(ack_list))
         while True:
             try:
                 message, addr = self.sender.recvfrom(1024)
@@ -151,26 +151,33 @@ class Server:
                     self.sender.sendto("connected".encode(), addr)
 
                 elif message == "start":
+                    client.send(f'starting to download the file'.encode())
                     while received <= num_of_packets:
-                        expected = ack_list[0]
-                        for i in range(0, 1):
-                            num = ack_list[i]
-                            print(f'sending packet number {num} to the client')
-                            self.sender.sendto(ready_file[num], addr)
-                            print("sent")
-                        for i in range(0, 1):
-                            print("waiting to receive")
-                            answer = int.from_bytes(self.sender.recvfrom(4)[0], "big")
-                            print(f'packet number {answer} has reached to the client')
-                            if answer == expected:
-                                expected += 1
-                            else:
-                                ack_list.remove(expected)
-                                ack_list.append(expected)
+                        num = ack_list[0]
+                        acknowledgement = False
+                        print(f'sending packet number {num} to the client')
+                        self.sender.sendto(ready_file[num], addr)
+                        time.sleep(1)
+                        print(ready_file[num])
+                        sent_time = time.time()
+                        print("sent")
+                        print("waiting to receive")
+                        while not acknowledgement:
+                            if time.time() - sent_time > 1:
+                                self.sender.sendto(ready_file[num], addr)
+                                print(f'sending again packet number {num} to the client')
+                                sent_time = time.time()
+                            try:
+                                info = self.sender.recvfrom(4)
+                                answer = int.from_bytes(info[0], "big")
+                                print(f'packet number {answer} has reached to the client')
 
-                            ack_list.remove(answer)
-                            ready_file.pop(answer)
-                            received += 1
+                                ack_list.remove(answer)
+                                ready_file.pop(answer)
+                                acknowledgement = True
+                                received += 1
+                            except:
+                                pass
 
                 elif message == "got all the data":
                     sys.exit()
@@ -178,6 +185,7 @@ class Server:
 
                 if received > num_of_packets:
                     self.sender.sendto("done".encode(), addr)
+                    client.send(f'the server has finished to send you the file'.encode())
 
             except:
                 pass

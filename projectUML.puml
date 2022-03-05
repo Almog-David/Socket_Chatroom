@@ -31,6 +31,7 @@ class Server{
 + create_file_for_download(self, file_name)
 +send_file(self, ready_file, num_of_packets)
 }
+class GUI{}
 
 Client -left-> Server
 Client <|-- GUI
