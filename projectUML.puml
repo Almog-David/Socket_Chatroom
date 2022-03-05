@@ -1,0 +1,43 @@
+@startuml
+'https://plantuml.com/class-diagram
+
+class Client {
+self.name
+self.client
+self.receiver
+self.func = []
++ __init__(self)
++ connect(self, name)
++ start(self)
++ receive(self)
++ write(self, message)
++ udp_connection(self, file_name)
++ create_file(self, file_segments, file_name)
+}
+
+class Server{
+ self.server
+ self.sender
+ self.connected_clients
+ self.server_files
++ __init__(self)
++ broadcast_msg(self, msg)
++ get_msg(self, client)
++ connect(self)
++ disconnect(self, client)
++ get_files(self)
++ online_users(self)
++ private_msg(self, sent_from, name, msg)
++ create_file_for_download(self, file_name)
++send_file(self, ready_file, num_of_packets)
+}
+
+Client -left-> Server
+Client <|-- GUI
+
+
+
+
+
+
+@enduml
